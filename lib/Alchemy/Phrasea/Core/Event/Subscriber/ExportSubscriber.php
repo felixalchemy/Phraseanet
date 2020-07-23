@@ -12,7 +12,15 @@
 namespace Alchemy\Phrasea\Core\Event\Subscriber;
 
 use Alchemy\Phrasea\Core\Event\ExportFailureEvent;
+use Alchemy\Phrasea\Core\Event\ExportMailEvent;
 use Alchemy\Phrasea\Core\PhraseaEvents;
+use Alchemy\Phrasea\Exception\InvalidArgumentException;
+use Alchemy\Phrasea\Model\Entities\Token;
+use Alchemy\Phrasea\Model\Repositories\TokenRepository;
+use Alchemy\Phrasea\Model\Repositories\UserRepository;
+use Alchemy\Phrasea\Notification\Emitter;
+use Alchemy\Phrasea\Notification\Mail\MailRecordsExport;
+use Alchemy\Phrasea\Notification\Receiver;
 
 class ExportSubscriber extends AbstractNotificationSubscriber
 {
@@ -42,7 +50,7 @@ class ExportSubscriber extends AbstractNotificationSubscriber
     public static function getSubscribedEvents()
     {
         return [
-            PhraseaEvents::EXPORT_MAIL_FAILURE => 'onMailExportFailure'
+            PhraseaEvents::EXPORT_MAIL_FAILURE => 'onMailExportFailure',
         ];
     }
 }

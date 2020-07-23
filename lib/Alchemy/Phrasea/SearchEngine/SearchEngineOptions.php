@@ -36,6 +36,7 @@ class SearchEngineOptions
     const TYPE_ALL = '';
     const SORT_RELEVANCE = 'relevance';
     const SORT_CREATED_ON = 'created_on';
+    const SORT_UPDATED_ON = 'updated_on';
     const SORT_RANDOM = 'random';
     const SORT_MODE_ASC = 'asc';
     const SORT_MODE_DESC = 'desc';
@@ -70,6 +71,8 @@ class SearchEngineOptions
     protected $i18n;
     /** @var bool */
     protected $stemming = true;
+    /** @var bool */
+    protected $use_truncation = false;
     /** @var string */
     protected $sort_by;
 
@@ -104,7 +107,8 @@ class SearchEngineOptions
         'sort_ord',
         'business_fields',
         'max_results',
-        'first_result'
+        'first_result',
+        'use_truncation',
     ];
 
     /**
@@ -217,6 +221,29 @@ class SearchEngineOptions
     }
 
     /**
+     * Tells whether to use truncation or not
+     *
+     * @param  boolean             $boolean
+     * @return $this
+     */
+    public function setUseTruncation($boolean)
+    {
+        $this->use_truncation = !!$boolean;
+
+        return $this;
+    }
+
+    /**
+     * Return wheter the use of truncation is enabled or not
+     *
+     * @return boolean
+     */
+    public function useTruncation()
+    {
+        return $this->use_truncation;
+    }
+
+    /**
      * Return wheter the use of stemming is enabled or not
      *
      * @return boolean
@@ -261,10 +288,10 @@ class SearchEngineOptions
     /**
      * Set the bases where to search for
      *
-     * @param  int[] $basesIds An array of ids
+     * @param  null|int[] $basesIds An array of ids
      * @return $this
      */
-    public function onBasesIds(array $basesIds)
+    public function onBasesIds($basesIds)
     {
         $this->basesIds = $basesIds;
 
@@ -541,6 +568,8 @@ class SearchEngineOptions
         $options->setFields($databoxFields);
         $options->setDateFields($databoxDateFields);
 
+        $options->setUseTruncation((Boolean) $request->get('truncation'));
+
         return $options;
     }
 
@@ -627,6 +656,7 @@ class SearchEngineOptions
                 }
             },
             'stemming' => $optionSetter('setStemming'),
+            'use_truncation' => $optionSetter('setUseTruncation'),
             'date_fields' => function ($value, SearchEngineOptions $options) use ($fieldNormalizer) {
                 $options->setDateFields($fieldNormalizer($value));
             },

@@ -192,7 +192,7 @@
             $("#dialog:ui-dialog").dialog("destroy");
 
             var name = $("#name"), accessclass = $("#accessclass"), subviewType = $("#subviewType"),
-                mediaType = $("#mediaType"), presets = $("#presets"),
+                mediaType = $("#mediaType"), presets = $("#presets"), subviewPath = $("#subviewPath"),
                 allFields = $([]).add(name).add(accessclass).add(subviewType).add(mediaType).add(presets),
                 tips = $(".validateTips");
 
@@ -214,6 +214,16 @@
                     return false;
                 } else {
                     return true;
+                }
+            }
+
+            function isNotEmpty(o){
+                if(o.val().length > 0){
+                    return true;
+                }else{
+                    o.addClass("ui-state-error");
+                    updateTips("Path is required");
+                    return false;
                 }
             }
 
@@ -244,12 +254,14 @@
             }
 
 
-            $("#dialog-form").dialog({
+            var subdefCreateDialog = $("#dialog-form").dialog({
                 autoOpen: false,
-                height: 420,
-                width: 300,
+                width: 382,
                 modal: true,
                 buttons: {
+                    Cancel: function () {
+                        $(this).dialog("close");
+                    },
                     "Create a Subdef": function () {
                         var bValid = true;
 
@@ -258,6 +270,7 @@
                         bValid = bValid && checkLength(name, "subdef name", 3, 16);
                         bValid = bValid && checkSpecialChar(name);
                         bValid = bValid && checkPresence(subviewType.val(), name);
+                        bValid = bValid && isNotEmpty(subviewPath);
 
                         if (bValid) {
                             $('input[name="add_subdef[group]"]').val(subviewType.val());
@@ -265,18 +278,18 @@
                             $('input[name="add_subdef[mediaType]"]').val(mediaType.val());
                             $('input[name="add_subdef[class]"]').val(accessclass.val());
                             $('input[name="add_subdef[presets]"]').val(presets.val());
+                            $('input[name="add_subdef[path]"]').val(subviewPath.val());
                             $(this).dialog("close");
                             $('form.subdefs').submit();
                         }
-                    },
-                    Cancel: function () {
-                        $(this).dialog("close");
                     }
                 },
                 close: function () {
                     allFields.val("").removeClass("ui-state-error");
                 }
             });
+
+            subdefCreateDialog.closest('.ui-dialog').addClass('dialog_container');
 
             $("#create-subdef")
             // .button()
@@ -295,7 +308,7 @@
             function delete_subdef(name) {
                 $("#dialog-delete-subdef").dialog({
                     resizable: false,
-                    height: 140,
+                    width: 382,
                     modal: true,
                     buttons: {
                         "Delete subdef": function () {
@@ -307,7 +320,13 @@
                             $(this).dialog("destroy");
                         }
                     }
+                })
+                .closest('.ui-dialog').addClass('dialog_container')
+                .find('.ui-dialog-buttonpane button').css({
+                    float: 'right',
+                    marginRight: '23px'
                 });
+                
             }
 
         });
@@ -318,11 +337,12 @@
 
 {% block content %}
     <p>
-        <button id="create-subdef" class="btn btn-success">{{ 'Create new subdef' | trans }}</button>
+        <button id="create-subdef" class="btn btn-success">{{ 'create_subdef_button_label' | trans }}</button>
     </p>
-    <div id="dialog-delete-subdef" title="{{ 'Delete the subdef ?' | trans }}" style="display:none;">
+
+    <div id="dialog-delete-subdef" title="{{ 'Delete the subview ?' | trans }}" style="display:none;">
         <p>
-            <span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>
+            {# <span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span> #}
             {{ 'These subdef will be permanently deleted and cannot be recovered. Are you sure?' | trans }}
         </p>
     </div>
@@ -331,31 +351,42 @@
         <p class="validateTips"></p>
         <form>
             <fieldset>
-                <label for="name">{{ 'Subdef name' | trans }}</label>
+                <label for="name">{{ 'create_subdef_modal_subdefinition_name' | trans }}</label>
                 <input type="text" name="name" id="name" class="text ui-widget-content ui-corner-all" value=""/><br/>
-                <label for="accessclass">{{ 'classe d\'acces' | trans }}</label>
-                <select name="accessclass" id="accessclass">
-                    <option value="document">{{ 'document' | trans }}</option>
-                    <option value="preview" selected="selected">{{ 'preview' | trans }}</option>
-                    <option value="thumbnail">{{ 'tout le monde' | trans }}</option>
-                </select>
-                <label for="subviewType">{{ 'subviewType' | trans }}</label>
-                <select name="subviewType" id="subviewType" onchange="subview_type(this)">
-                    <option>{{ 'Choisir' | trans }}</option>
-                    <option value="image">{{ 'image' | trans }}</option>
-                    <option value="video">{{ 'video' | trans }}</option>
-                    <option value="audio">{{ 'audio' | trans }}</option>
-                    <option value="document">{{ 'document' | trans }}</option>
-                    <option value="flash">{{ 'flash' | trans }}</option>
-                </select>
-                <label for="mediaType">{{ 'mediatype' | trans }}</label>
-                <select name="mediaType" id="mediaType" onchange="media_type(this)">
-                    <option>{{ 'Choisir' | trans }}</option>
-                </select>
-                <label for="presets">{{ 'Presets' | trans }}</label>
-                <select name="presets" id="presets">
-                    <option>{{ 'Choisir' | trans }}</option>
-                </select>
+                <label for="accessclass">{{ 'create_subdef_modal_access_class' | trans }}</label>
+                <div class="selectdiv">
+                    <select name="accessclass" id="accessclass">
+                        <option value="document">{{ 'create_subdef_modal_access_class_document' | trans }}</option>
+                        <option value="preview"
+                                selected="selected">{{ 'create_subdef_modal_access_class_preview' | trans }}</option>
+                        <option value="thumbnail">{{ 'create_subdef_modal_access_class_no_restriction' | trans }}</option>
+                    </select>
+                </div>
+                <label for="subviewType">{{ 'create_subdef_modal_record_phraseanet_type' | trans }}</label>
+                <div class="selectdiv">
+                    <select name="subviewType" id="subviewType" onchange="subview_type(this)">
+                        <option>{{ 'Choisir' | trans }}</option>
+                        <option value="image">{{ 'image' | trans }}</option>
+                        <option value="video">{{ 'video' | trans }}</option>
+                        <option value="audio">{{ 'audio' | trans }}</option>
+                        <option value="document">{{ 'document' | trans }}</option>
+                        <option value="flash">{{ 'flash' | trans }}</option>
+                    </select>
+                </div>
+                <label for="mediaType">{{ 'create_subdef_modal_preview_mediatype' | trans }}</label>
+                <div class="selectdiv">
+                    <select name="mediaType" id="mediaType" onchange="media_type(this)">
+                        <option>{{ 'Choisir' | trans }}</option>
+                    </select>
+                </div>
+                <label for="presets">{{ 'create_subdef_modal_presets' | trans }}</label>
+                <div class="selectdiv">
+                    <select name="presets" id="presets">
+                        <option>{{ 'Choisir' | trans }}</option>
+                    </select>
+                </div>
+                <label for="subviewPath">{{ 'Path' | trans }}</label>
+                <input type="text" name="subviewPath" id="subviewPath" class="text ui-widget-content ui-corner-all" value="{{ databox.getSubdefStorage }}" />
             </fieldset>
         </form>
     </div>
@@ -588,6 +619,7 @@
         <input type="hidden" name="add_subdef[mediaType]" value=""/>
         <input type="hidden" name="add_subdef[class]" value=""/>
         <input type="hidden" name="add_subdef[presets]" value=""/>
+        <input type="hidden" name="add_subdef[path]" value=""/>
     </form>
 
     <div style="display:none;">

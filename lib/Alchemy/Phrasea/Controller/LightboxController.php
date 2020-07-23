@@ -78,17 +78,39 @@ class LightboxController extends Controller
     {
         /** @var BasketElementRepository $repository */
         $repository = $this->app['repo.basket-elements'];
-
         $basketElement = $repository->findUserElement($sselcont_id, $this->getAuthenticatedUser());
+
+        $basket = $basketElement->getBasket();
+
+        $elements = $basket->getElements();
+        for ($i = 0; $i < count($elements); ++$i) {
+            if ($sselcont_id == $elements[$i]->getId()) {
+                $nextKey = $i + 1;
+                $prevKey = $i - 1;
+                if ($nextKey < count($elements)) {
+                    $nextId = $elements[$nextKey]->getId();
+                }
+                else {
+                    $nextId = null;
+                }
+                if ($prevKey >= 0) {
+                    $prevId = $elements[$prevKey]->getId();
+                }
+                else {
+                    $prevId = null;
+                }
+            }
+        }
 
         if ($this->app['browser']->isMobile()) {
             return $this->renderResponse('lightbox/basket_element.html.twig', [
                 'basket_element' => $basketElement,
-                'module_name'    => $basketElement->getRecord($this->app)->get_title()
+                'module_name'    => $basketElement->getRecord($this->app)->get_title(),
+                'nextId'         => $nextId,
+                'prevId'         => $prevId
             ]);
         }
 
-        $basket = $basketElement->getBasket();
 
         $ret = [];
         $ret['number'] = $basketElement->getRecord($this->app)->getNumber();
@@ -426,6 +448,51 @@ class LightboxController extends Controller
         }
 
         return $this->app->json($data);
+    }
+
+    /**
+     * @param Basket $basket
+     * @return Response
+     */
+    public function ajaxGetElementsAction(Basket $basket)
+    {
+        $ret = [
+            'error'  => false,
+            'datas' => [
+                'counts' => [
+                    'yes'   => 0,
+                    'no'    => 0,
+                    'nul'   => 0,
+                    'total' => 0
+                ]
+            ]
+        ];
+        try {
+            if (!$basket->getValidation()) {
+                throw new Exception('There is no validation session attached to this basket');
+            }
+            foreach ($basket->getElements() as $element) {
+                $vd = $element->getUserValidationDatas($this->getAuthenticatedUser());
+                if($vd->getAgreement() === true) {
+                    $ret['datas']['counts']['yes']++;
+                }
+                elseif($vd->getAgreement() === false) {
+                    $ret['datas']['counts']['no']++;
+                }
+                elseif($vd->getAgreement() === null) {
+                    $ret['datas']['counts']['nul']++;
+                }
+                $ret['datas']['counts']['total']++;
+            }
+        }
+        catch (Exception $e) {
+            $ret = [
+                'error' => true,
+                'datas' => $e->getMessage()
+            ];
+        }
+
+        return $this->app->json($ret);
     }
 
     /**

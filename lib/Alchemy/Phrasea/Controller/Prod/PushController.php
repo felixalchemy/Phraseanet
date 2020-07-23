@@ -98,7 +98,7 @@ class PushController extends Controller
                 $Basket->setUser($user_receiver);
                 $Basket->setPusher($this->getAuthenticatedUser());
                 $Basket->markUnread();
-                
+
                 $manager->persist($Basket);
 
                 foreach ($pusher->get_elements() as $element) {
@@ -193,7 +193,7 @@ class PushController extends Controller
                 'Validation from %user%', [
                 '%user%' => $this->getAuthenticatedUser()->getDisplayName(),
             ]));
-            $validation_description = $request->request->get('validation_description');
+            $validation_description = $request->request->get('message');
 
             $participants = $request->request->get('participants');
 
@@ -463,6 +463,8 @@ class PushController extends Controller
         }
 
         try {
+            $manager = $this->getEntityManager();
+
             $password = $this->getRandomGenerator()->generateString(128);
 
             $user = $this->getUserManipulator()->createUser($email, $password, $email);
@@ -476,11 +478,14 @@ class PushController extends Controller
                 $user->setCompany($request->request->get('company'));
             }
             if ($request->request->get('job')) {
-                $user->setCompany($request->request->get('job'));
+                $user->setJob($request->request->get('job'));
             }
-            if ($request->request->get('form_geonameid')) {
-                $this->getUserManipulator()->setGeonameId($user, $request->request->get('form_geonameid'));
+            if ($request->request->get('city')) {
+                $this->getUserManipulator()->setGeonameId($user, $request->request->get('city'));
             }
+
+            $manager->persist($user);
+            $manager->flush();
 
             $result['message'] = $this->app->trans('User successfully created');
             $result['success'] = true;
@@ -507,6 +512,8 @@ class PushController extends Controller
             ->like(\User_Query::LIKE_FIRSTNAME, $request->query->get('query'))
             ->like(\User_Query::LIKE_LASTNAME, $request->query->get('query'))
             ->like(\User_Query::LIKE_LOGIN, $request->query->get('query'))
+            ->like(\User_Query::LIKE_EMAIL, $request->query->get('query'))
+            ->like(\User_Query::LIKE_COMPANY, $request->query->get('query'))
             ->like_match(\User_Query::LIKE_MATCH_OR);
 
         $result = $query
@@ -546,6 +553,10 @@ class PushController extends Controller
             $query
                 ->like($request->get('like_field'), $request->get('query'))
                 ->like_match(\User_Query::LIKE_MATCH_OR);
+        }
+
+        if (is_array($request->get('EmailDomain'))) {
+            $query->haveEmailDomains($request->get('EmailDomain'));
         }
         if (is_array($request->get('Activity'))) {
             $query->haveActivities($request->get('Activity'));
@@ -593,6 +604,38 @@ class PushController extends Controller
         return new Response(
             $this->render('prod/actions/Feedback/list.html.twig', $params)
         );
+    }
+
+    public function updateExpirationAction(Request $request)
+    {
+        $ret = [
+            'success' => false,
+            'message' => $this->app->trans('Unable to save the expiration date')
+        ];
+        if (is_null($request->request->get('date'))) {
+            $ret['message'] = $this->app->trans('The provided date is null!');
+            return $this->app->json($ret);
+        }
+        $repository = $this->app['repo.baskets'];
+        $manager = $this->getEntityManager();
+        $manager->beginTransaction();
+        try {
+            $basket = $repository->findUserBasket($request->request->get('basket_id'), $this->app->getAuthenticatedUser(), true);
+            $date = new \DateTime($request->request->get('date') . " 23:59:59");
+            $validation = $basket->getValidation();
+            if (is_null($validation)) {
+                return $this->app->json($ret);
+            }
+            $validation->setExpires($date);
+            $manager->persist($validation);
+            $manager->flush();
+            $manager->commit();
+            $ret['message'] = 'Expiration date successfully updated!';
+        } catch (\Exception $e) {
+            $ret['message'] = $e->getMessage();
+            $manager->rollback();
+        }
+        return $this->app->json($ret);
     }
 
     private function formatUser(User $user)
@@ -729,4 +772,5 @@ class PushController extends Controller
     {
         return $this->app['random.medium'];
     }
+
 }

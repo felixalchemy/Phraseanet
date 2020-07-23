@@ -82,13 +82,16 @@ class RegistryFormManipulator
 
     private function filterNullValues(array &$array)
     {
-        return array_filter($array, function (&$value) {
+        foreach ($array as $key => &$value) {
             if (is_array($value)) {
-                $value = $this->filterNullValues($value);
+                $this->filterNullValues($value);
             }
+            else if ($key !== 'geonames-server' && $value === null) {
+                unset($array[$key]);
+            }
+        }
 
-            return null !== $value;
-        });
+        return $array;
     }
 
     private function getDefaultData(array $config)
@@ -99,6 +102,8 @@ class RegistryFormManipulator
                 'keywords' => null,
                 'description' => null,
                 'analytics' => null,
+                'matomo-analytics-url' => null,
+                'matomo-analytics-id' => null,
                 'allow-indexation' => true,
                 'home-presentation-mode' => 'GALLERIA',
                 'default-subdef-url-ttl' => 7200,
@@ -139,10 +144,11 @@ class RegistryFormManipulator
                 'api-enabled' => true,
                 'navigator-enabled' => true,
                 'office-enabled' => true,
+                'adobe_cc-enabled' => true,
             ],
             'webservices'  => [
                 'google-charts-enabled' => true,
-                'geonames-server' => 'http://geonames.alchemyasp.com/',
+                'geonames-server' => 'https://geonames.alchemyasp.com/',
                 'captchas-enabled' => false,
                 'recaptcha-public-key' => '',
                 'recaptcha-private-key' => '',
@@ -175,19 +181,14 @@ class RegistryFormManipulator
             ],
             'custom-links' => [
                 [
-                    'linkName'     => 'Phraseanet store',
-                    'linkLanguage' => 'fr',
-                    'linkUrl'      => 'https://alchemy.odoo.com/shop',
-                    'linkLocation' => 'help-menu',
-                    'linkOrder'    => '1',
-                ],
-                [
-                    'linkName'     => 'Phraseanet store',
-                    'linkLanguage' => 'en',
-                    'linkUrl'      => 'https://alchemy.odoo.com/en_US/shop',
-                    'linkLocation' => 'help-menu',
-                    'linkOrder'    => '1',
-                ],
+                    'linkName'      => 'Phraseanet store',
+                    'linkLanguage'  => 'all',
+                    'linkUrl'       => 'https://store.alchemy.fr',
+                    'linkLocation'  => 'help-menu',
+                    'linkOrder'     =>  1,
+                    'linkBold'      =>  false,
+                    'linkColor'     =>  ''
+                ]
             ]
         ];
     }

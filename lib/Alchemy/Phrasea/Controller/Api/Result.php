@@ -11,6 +11,8 @@
 
 namespace Alchemy\Phrasea\Controller\Api;
 
+use Alchemy\Phrasea\ControllerProvider\Api\V1;
+use Alchemy\Phrasea\ControllerProvider\Api\V3;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -267,7 +269,15 @@ class Result
     public function getVersion()
     {
         if (null === $this->version) {
-            $this->version = $this->request->attributes->get('api_version') ?: self::$defaultVersion;
+            if ($this->request->attributes->get('api_version')) {
+                $this->version = $this->request->attributes->get('api_version');
+            } elseif (mb_strpos($this->request->getPathInfo(), '/api/v1') !== FALSE) {
+                $this->version = V1::VERSION;
+            }  elseif (mb_strpos($this->request->getPathInfo(), '/api/v3') !== FALSE) {
+                $this->version = V3::VERSION;
+            } else {
+                $this->version = self::$defaultVersion;
+            }
         }
 
         return $this->version;

@@ -232,6 +232,7 @@ class LoginController extends Controller
                     $registrationService = $this->getRegistrationService();
                     $providerId = isset($data['provider-id']) ? $data['provider-id'] : null;
                     $selectedCollections = isset($data['collections']) ? $data['collections'] : null;
+                    $data['email'] = trim($data['email']);
 
                     $user = $registrationService->registerUser($data, $selectedCollections, $providerId);
 
@@ -265,7 +266,7 @@ class LoginController extends Controller
         return $this->render('login/register-classic.html.twig', array_merge(
             $this->getDefaultTemplateVariables($request),
             [
-                'geonames_server_uri' => str_replace(sprintf('%s:', parse_url($url, PHP_URL_SCHEME)), '', $url),
+                'geonames_server_uri' => $url,
                 'form' => $form->createView()
             ]));
     }
@@ -552,6 +553,7 @@ class LoginController extends Controller
         } while (null !== $this->getUserRepository()->findOneBy(['login' => $login]));
 
         $user = $this->getUserManipulator()->createUser($login, $this->getStringGenerator()->generateString(128));
+        $user->setGuest(true);
         $invite_user = $this->getUserRepository()->findByLogin(User::USER_GUEST);
 
         $usr_base_ids = array_keys($this->getAclForUser($user)->get_granted_base());

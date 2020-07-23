@@ -5,8 +5,11 @@ namespace Alchemy\Phrasea\Application;
 use Alchemy\EmbedProvider\EmbedServiceProvider;
 use Alchemy\Phrasea\Application;
 use Alchemy\Phrasea\ControllerProvider as Providers;
+use Alchemy\Phrasea\Report\ControllerProvider\ProdReportControllerProvider;
+use Alchemy\Phrasea\WorkerManager\Provider\ControllerServiceProvider as WorkerManagerProvider;
 use Assert\Assertion;
 use Silex\ControllerProviderInterface;
+
 
 class RouteLoader
 {
@@ -26,6 +29,7 @@ class RouteLoader
         '/admin/setup'                 => Providers\Admin\Setup::class,
         '/admin/subdefs'               => Providers\Admin\Subdefs::class,
         '/admin/task-manager'          => Providers\Admin\TaskManager::class,
+        '/admin/worker-manager'        => WorkerManagerProvider::class,
         '/admin/users'                 => Providers\Admin\Users::class,
         '/client/'                     => Providers\Client\Root::class,
         '/datafiles'                   => Providers\Datafiles::class,
@@ -53,16 +57,16 @@ class RouteLoader
         '/prod/records/edit'           => Providers\Prod\Edit::class,
         '/prod/records/movecollection' => Providers\Prod\MoveCollection::class,
         '/prod/records/property'       => Providers\Prod\Property::class,
+        '/prod/report/'                => ProdReportControllerProvider::class,
         '/prod/share/'                 => Providers\Prod\Share::class,
         '/prod/story'                  => Providers\Prod\Story::class,
+        '/prod/subdefs'                => Providers\Prod\Subdefs::class,
         '/prod/tools/'                 => Providers\Prod\Tools::class,
         '/prod/tooltip'                => Providers\Prod\Tooltip::class,
         '/prod/TOU/'                   => Providers\Prod\TOU::class,
         '/prod/upload/'                => Providers\Prod\Upload::class,
         '/prod/WorkZone'               => Providers\Prod\WorkZone::class,
         '/prod/'                       => Providers\Prod\Root::class,
-        '/report/activity'             => Providers\Report\Activity::class,
-        '/report/informations'         => Providers\Report\Information::class,
         '/report/'                     => Providers\Report\Root::class,
         '/session/'                    => Providers\Root\Session::class,
         '/setup'                       => Providers\Setup::class,

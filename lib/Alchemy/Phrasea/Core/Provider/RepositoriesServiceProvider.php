@@ -66,6 +66,9 @@ class RepositoriesServiceProvider implements ServiceProviderInterface
         $app['repo.validation-participants'] = $app->share(function (PhraseaApplication $app) {
             return $app['orm.em']->getRepository('Phraseanet:ValidationParticipant');
         });
+        $app['repo.validation-session'] = $app->share(function (PhraseaApplication $app) {
+            return $app['orm.em']->getRepository('Phraseanet:ValidationSession');
+        });
         $app['repo.story-wz'] = $app->share(function (PhraseaApplication $app) {
             return $app['orm.em']->getRepository('Phraseanet:StoryWZ');
         });
@@ -143,6 +146,18 @@ class RepositoriesServiceProvider implements ServiceProviderInterface
         });
         $app['repo.webhook-delivery'] = $app->share(function (PhraseaApplication $app) {
             return $app['orm.em']->getRepository('Phraseanet:WebhookEventDelivery');
+        });
+        $app['repo.worker-running-job'] = $app->share(function (PhraseaApplication $app) {
+            return $app['orm.em']->getRepository('Phraseanet:WorkerRunningJob');
+        });
+        $app['repo.worker-job'] = $app->share(function (PhraseaApplication $app) {
+            return $app['orm.em']->getRepository('Phraseanet:WorkerJob');
+        });
+        $app['repo.worker-running-populate'] = $app->share(function (PhraseaApplication $app) {
+            return $app['orm.em']->getRepository('Phraseanet:WorkerRunningPopulate');
+        });
+        $app['repo.worker-running-uploader'] = $app->share(function (PhraseaApplication $app) {
+            return $app['orm.em']->getRepository('Phraseanet:WorkerRunningUploader');
         });
 
         $app['repo.databoxes'] = $app->share(function (PhraseaApplication $app) {

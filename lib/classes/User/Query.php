@@ -36,11 +36,14 @@ class User_Query
     const LIKE_COUNTRY = 'country';
     const LIKE_MATCH_AND = 'AND';
     const LIKE_MATCH_OR = 'OR';
+    const LIKE_TYPE_START = 'like_start';
+    const LIKE_TYPE_CONTAINS = 'like_contains';
 
     protected $app;
     protected $results = [];
     protected $sort = [];
     protected $like_field = [];
+    protected $like_type = 'like_start';
     protected $have_rights = null;
     protected $have_not_rights = null;
     protected $like_match = 'OR';
@@ -62,6 +65,7 @@ class User_Query
     protected $include_phantoms = true;
     protected $include_special_users = false;
     protected $include_invite = false;
+    protected $emailDomains = null;
     protected $activities = null;
     protected $templates = null;
     protected $companies = null;
@@ -399,12 +403,14 @@ class User_Query
      *
      * @param $like_field
      * @param $like_value
+     * @param $like_type
      *
      * @return $this
      */
-    public function like($like_field, $like_value)
+    public function like($like_field, $like_value, $like_type = self::LIKE_TYPE_START)
     {
         $this->like_field[trim($like_field)] = trim($like_value);
+        $this->like_type = $like_type;
         $this->total = $this->page = $this->total_page = null;
 
         return $this;
@@ -504,6 +510,38 @@ class User_Query
     }
 
     /**
+     * Restrict users with provided email domain
+     *
+     * @param array $req_emailDomains
+     * @return $this
+     */
+    public function haveEmailDomains(array $req_emailDomains)
+    {
+        $emailDomains = new ArrayCollection();
+
+        foreach ($req_emailDomains as $emailDomain) {
+            if (($emailDomain = trim($emailDomain)) === '') {
+                continue;
+            }
+
+            // use % for LIKE in SQL
+            $emailDomain = '%'.$emailDomain;
+
+            if ($emailDomains->contains($emailDomain)) {
+                continue;
+            }
+
+            $emailDomains->add($emailDomain);
+        }
+
+        if (!$emailDomains->isEmpty()) {
+            $this->emailDomains = $emailDomains;
+        }
+
+        return $this;
+    }
+
+    /**
      * Restrict users with provided activities
      *
      * @param array $req_activities
@@ -515,7 +553,7 @@ class User_Query
         $activities = new ArrayCollection();
 
         foreach ($req_activities as $activity) {
-            if ($activity = trim($activity) === '') {
+            if (($activity = trim($activity)) === '') {
                 continue;
             }
 
@@ -545,7 +583,7 @@ class User_Query
         $positions = new ArrayCollection();
 
         foreach ($req_positions as $position) {
-            if ($position = trim($position) === '') {
+            if (($position = trim($position)) === '') {
                 continue;
             }
             if ($positions->contains($position)) {
@@ -574,7 +612,7 @@ class User_Query
         $countries = new ArrayCollection();
 
         foreach ($req_countries as $country) {
-            if ($country = trim($country) === '') {
+            if (($country = trim($country)) === '') {
                 continue;
             }
             if ($countries->contains($country)) {
@@ -603,7 +641,7 @@ class User_Query
         $companies = new ArrayCollection();
 
         foreach ($req_companies as $company) {
-            if ($company = trim($company) === '') {
+            if (($company = trim($company)) === '') {
                 continue;
             }
             if ($companies->contains($company)) {
@@ -631,7 +669,7 @@ class User_Query
         $templates = new ArrayCollection();
 
         foreach ($req_templates as $template) {
-            if ($template = trim($template) === '') {
+            if (($template = trim($template)) === '') {
                 continue;
             }
             if ($templates->contains($template)) {
@@ -660,6 +698,33 @@ class User_Query
         $this->get_inactives = !!$boolean;
 
         return $this;
+    }
+
+    /**
+     * Get users email domain
+     *
+     * @return array
+     */
+    public function getRelatedEmailDomain()
+    {
+        $conn = $this->app->getApplicationBox()->get_connection();
+
+        $sql = 'SELECT DISTINCT SUBSTRING_INDEX(Users.email, "@", -1) as emailDomain' . $this->generate_sql_constraints(). 'ORDER BY emailDomain';
+
+        $stmt = $conn->prepare($sql);
+        $stmt->execute($this->sql_params);
+        $rs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
+
+        $emailDomains = [];
+        foreach ($rs as $row) {
+            if (trim($row['emailDomain']) === '') {
+                continue;
+            }
+            $emailDomains[] = $row['emailDomain'];
+        }
+
+        return $emailDomains;
     }
 
     /**
@@ -812,7 +877,7 @@ class User_Query
                 WHERE 1 ';
 
         if (! $this->include_special_users) {
-            $sql .= ' AND Users.login != "autoregister" AND Users.login != "invite" ';
+            $sql .= ' AND Users.login != "autoregister"';
         }
 
         $sql .= ' AND Users.deleted="0" ';
@@ -838,20 +903,24 @@ class User_Query
             $sql .= ' AND model_of IS NULL';
         }
 
+        if ($this->emailDomains) {
+            $sql .= $this->generate_field_constraints('email', $this->emailDomains, 'LIKE');
+        }
+
         if ($this->activities) {
-            $sql .= $this->generate_field_constraints('activite', $this->activities);
+            $sql .= $this->generate_field_constraints('activity', $this->activities);
         }
 
         if ($this->positions) {
-            $sql .= $this->generate_field_constraints('fonction', $this->positions);
+            $sql .= $this->generate_field_constraints('job', $this->positions);
         }
 
         if ($this->countries) {
-            $sql .= $this->generate_field_constraints('pays', $this->countries);
+            $sql .= $this->generate_field_constraints('country', $this->countries);
         }
 
         if ($this->companies) {
-            $sql .= $this->generate_field_constraints('societe', $this->companies);
+            $sql .= $this->generate_field_constraints('company', $this->companies);
         }
 
         if ($this->templates) {
@@ -930,13 +999,24 @@ class User_Query
                         if (trim($like_val) === '')
                             continue;
 
-                        $queries[] = sprintf(
-                            ' (Users.`%s` LIKE "%s%%"  COLLATE utf8_unicode_ci OR Users.`%s` LIKE "%s%%"  COLLATE utf8_unicode_ci)  '
-                            , self::LIKE_FIRSTNAME
-                            , str_replace(['"', '%'], ['\"', '\%'], $like_val)
-                            , self::LIKE_LASTNAME
-                            , str_replace(['"', '%'], ['\"', '\%'], $like_val)
-                        );
+                        if ($this->like_type == self::LIKE_TYPE_CONTAINS) {
+                            $queries[] = sprintf(
+                                ' (Users.`%s` LIKE "%%%s%%"  COLLATE utf8_unicode_ci OR Users.`%s` LIKE "%%%s%%"  COLLATE utf8_unicode_ci)  '
+                                , self::LIKE_FIRSTNAME
+                                , str_replace(['"', '%'], ['\"', '\%'], $like_val)
+                                , self::LIKE_LASTNAME
+                                , str_replace(['"', '%'], ['\"', '\%'], $like_val)
+                            );
+                        } else {
+                            $queries[] = sprintf(
+                                ' (Users.`%s` LIKE "%s%%"  COLLATE utf8_unicode_ci OR Users.`%s` LIKE "%s%%"  COLLATE utf8_unicode_ci)  '
+                                , self::LIKE_FIRSTNAME
+                                , str_replace(['"', '%'], ['\"', '\%'], $like_val)
+                                , self::LIKE_LASTNAME
+                                , str_replace(['"', '%'], ['\"', '\%'], $like_val)
+                            );
+                        }
+
                     }
 
                     if (count($queries) > 0) {
@@ -949,11 +1029,20 @@ class User_Query
                 case self::LIKE_EMAIL:
                 case self::LIKE_LOGIN:
                 case self::LIKE_COUNTRY:
-                    $sql_like[] = sprintf(
-                        ' Users.`%s` LIKE "%s%%"  COLLATE utf8_unicode_ci '
-                        , $like_field
-                        , str_replace(['"', '%'], ['\"', '\%'], $like_value)
-                    );
+                    if ($this->like_type == self::LIKE_TYPE_CONTAINS) {
+                        $sql_like[] = sprintf(
+                            ' Users.`%s` LIKE "%%%s%%"  COLLATE utf8_unicode_ci '
+                            , $like_field
+                            , str_replace(['"', '%'], ['\"', '\%'], $like_value)
+                        );
+                    } else {
+                        $sql_like[] = sprintf(
+                            ' Users.`%s` LIKE "%s%%"  COLLATE utf8_unicode_ci '
+                            , $like_field
+                            , str_replace(['"', '%'], ['\"', '\%'], $like_value)
+                        );
+                    }
+
                     break;
                 default;
                     break;
@@ -967,7 +1056,7 @@ class User_Query
         return $sql;
     }
 
-    protected function generate_field_constraints($fieldName, ArrayCollection $fields)
+    protected function generate_field_constraints($fieldName, ArrayCollection $fields, $operator = '=')
     {
         $n = 0;
         $constraints = [];
@@ -975,7 +1064,8 @@ class User_Query
         foreach ($fields as $field) {
             $constraints[':' . $fieldName . $n ++] = $field;
         }
-        $sql = ' AND (' . $fieldName . ' = ' . implode(' OR ' . $fieldName . ' = ', array_keys($constraints)) . ') ';
+
+        $sql = ' AND (' . $fieldName . ' ' . $operator . ' ' . implode(' OR ' . $fieldName . ' ' . $operator . ' ' , array_keys($constraints)) . ') ';
 
         $this->sql_params = array_merge($this->sql_params, $constraints);
 

@@ -17,6 +17,7 @@ use Alchemy\Phrasea\Account\Command\UpdatePasswordCommand;
 use Alchemy\Phrasea\Account\RestrictedStatusExtractor;
 use Alchemy\Phrasea\Application\Helper\DataboxLoggerAware;
 use Alchemy\Phrasea\Application\Helper\DispatcherAware;
+use Alchemy\Phrasea\Application\Helper\FilesystemAware;
 use Alchemy\Phrasea\Application\Helper\JsonBodyAware;
 use Alchemy\Phrasea\Authentication\Exception\RegistrationException;
 use Alchemy\Phrasea\Authentication\RegistrationService;
@@ -78,6 +79,7 @@ use Alchemy\Phrasea\Search\TechnicalDataView;
 use Alchemy\Phrasea\Search\V1SearchCompositeResultTransformer;
 use Alchemy\Phrasea\Search\V1SearchRecordsResultTransformer;
 use Alchemy\Phrasea\Search\V1SearchResultTransformer;
+use Alchemy\Phrasea\SearchEngine\Elastic\ElasticsearchOptions;
 use Alchemy\Phrasea\SearchEngine\SearchEngineInterface;
 use Alchemy\Phrasea\SearchEngine\SearchEngineLogger;
 use Alchemy\Phrasea\SearchEngine\SearchEngineOptions;
@@ -85,9 +87,13 @@ use Alchemy\Phrasea\SearchEngine\SearchEngineResult;
 use Alchemy\Phrasea\Status\StatusStructure;
 use Alchemy\Phrasea\TaskManager\LiveInformation;
 use Alchemy\Phrasea\Utilities\NullableDateTime;
+use Alchemy\Phrasea\WorkerManager\Event\AssetsCreateEvent;
+use Alchemy\Phrasea\WorkerManager\Event\WorkerEvents;
 use Doctrine\ORM\EntityManager;
-use JMS\TranslationBundle\Annotation\Ignore;
+use Guzzle\Http\Client as Guzzle;
 use League\Fractal\Resource\Item;
+use media_subdef;
+use Neutron\TemporaryFilesystem\TemporaryFilesystemInterface;
 use Symfony\Component\Form\Form;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
@@ -96,10 +102,12 @@ use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Translation\TranslatorInterface;
 
+
 class V1Controller extends Controller
 {
     use DataboxLoggerAware;
     use DispatcherAware;
+    use FilesystemAware;
     use JsonBodyAware;
 
     const OBJECT_TYPE_USER = 'http://api.phraseanet.com/api/objects/user';
@@ -209,6 +217,30 @@ class V1Controller extends Controller
         }
 
         return $this->showTaskAction($request, $task);
+    }
+
+    /**
+     *  Use with the uploader service
+     * @param Request $request
+     * @return Response
+     */
+    public function sendAssetsInQueue(Request $request)
+    {
+        $jsonBodyHelper = $this->getJsonBodyHelper();
+        $schema = $this->app['json-schema.ref_resolver']->resolve($this->app['json-schema.base_uri']. 'assets_enqueue.json');
+        $data = $request->getContent();
+
+        $errors = $jsonBodyHelper->validateJson(json_decode($data), $schema);
+
+        if (count($errors) > 0) {
+            return Result::createError($request, 422, $errors[0])->createResponse();
+        }
+
+        $this->dispatch(WorkerEvents::ASSETS_CREATE, new AssetsCreateEvent(json_decode($data, true)));
+
+        return Result::create($request, [
+            "data" => json_decode($data),
+        ])->createResponse();
     }
 
     private function getCacheInformation()
@@ -588,6 +620,9 @@ class V1Controller extends Controller
                 ],
                 'separator'        => $databox_field->get_separator(),
                 'thesaurus_branch' => $databox_field->get_tbranch(),
+                'generate_cterms'  => $databox_field->get_generate_cterms(),
+                'gui_editable'     => $databox_field->get_gui_editable(),
+                'gui_visible'      => $databox_field->get_gui_visible(),
                 'type'             => $databox_field->get_type(),
                 'indexable'        => $databox_field->is_indexable(),
                 'multivalue'       => $databox_field->is_multi(),
@@ -685,8 +720,18 @@ class V1Controller extends Controller
 
         $checks = array_map(function (LazaretCheck $checker) use ($manager, $translator) {
             $checkerFQCN = $checker->getCheckClassname();
+
             return $manager->getCheckerFromFQCN($checkerFQCN)->getMessage($translator);
-        }, iterator_to_array($file->getChecks()));
+        }, $file->getChecksWhithNameKey());
+
+        $recordsMatch = array_map(function ($recordsTab){
+            $record = $recordsTab['record'];
+            $matched['record_id'] = $record->getRecordId();
+            $matched['collection'] = $record->getCollectionName();
+            $matched['checks'] = $recordsTab['reasons'];
+
+            return $matched;
+        }, array_values($file->getRecordsToSubstitute($this->app, true)));
 
         $usr_id = $user = null;
         if ($file->getSession()->getUser()) {
@@ -705,10 +750,12 @@ class V1Controller extends Controller
             'quarantine_session' => $session,
             'base_id'            => $file->getBaseId(),
             'original_name'      => $file->getOriginalName(),
+            'collection'         => $file->getCollection($this->app)->get_label($this->app['locale']),
             'sha256'             => $file->getSha256(),
             'uuid'               => $file->getUuid(),
             'forced'             => $file->getForced(),
             'checks'             => $file->getForced() ? [] : $checks,
+            'records_match'      => $recordsMatch?:[],
             'created_on'         => $file->getCreated()->format(DATE_ATOM),
             'updated_on'         => $file->getUpdated()->format(DATE_ATOM),
         ];
@@ -888,19 +935,6 @@ class V1Controller extends Controller
 
     public function addRecordAction(Request $request)
     {
-        if (count($request->files->get('file')) == 0) {
-            return $this->getBadRequestAction($request, 'Missing file parameter');
-        }
-
-        $file = $request->files->get('file');
-        if (!$file instanceof UploadedFile) {
-            return $this->getBadRequestAction($request, 'You can upload one file at time');
-        }
-
-        if (!$file->isValid()) {
-            return $this->getBadRequestAction($request, 'Data corrupted, please try again');
-        }
-
         if (!$request->get('base_id')) {
             return $this->getBadRequestAction($request, 'Missing base_id parameter');
         }
@@ -913,9 +947,57 @@ class V1Controller extends Controller
             ))->createResponse();
         }
 
-        $media = $this->app->getMediaFromUri($file->getPathname());
+        if (count($request->files->get('file')) == 0) {
+            if(count($request->get('url')) == 0) {
+                return $this->getBadRequestAction($request, 'Missing file parameter');
+            }
+            else {
+                // upload via url
+                $url = $request->get('url');
+                $pi = pathinfo($url);   // filename, extension
 
-        $Package = new File($this->app, $media, $collection, $file->getClientOriginalName());
+                /** @var TemporaryFilesystemInterface $tmpFs */
+                $tmpFs = $this->app['temporary-filesystem'];
+                $tempfile = $tmpFs->createTemporaryFile('download_', null, $pi['extension']);
+
+                try {
+                    $guzzle = new Guzzle($url);
+                    $res = $guzzle->get("", [], ['save_to' => $tempfile])->send();
+                }
+                catch (\Exception $e) {
+                    return $this->getBadRequestAction($request, sprintf('Error "%s" downloading "%s"', $e->getMessage(), $url));
+                }
+
+                if($res->getStatusCode() !== 200) {
+                    return $this->getBadRequestAction($request, sprintf('Error %s downloading "%s"', $res->getStatusCode(), $url));
+                }
+
+                $originalName = $pi['filename'] . '.' . $pi['extension'];
+                $uploadedFilename = $newPathname = $tempfile;
+            }
+        }
+        else {
+            // upload via file
+            $file = $request->files->get('file');
+            if (!$file instanceof UploadedFile) {
+                return $this->getBadRequestAction($request, 'You can upload one file at time');
+            }
+            if (!$file->isValid()) {
+                return $this->getBadRequestAction($request, 'Data corrupted, please try again');
+            }
+
+            $uploadedFilename = $file->getPathname();
+            $originalName = $file->getClientOriginalName();
+            $newPathname = $file->getPathname() . '.' . $file->getClientOriginalExtension();
+
+            if (false === rename($file->getPathname(), $newPathname)) {
+                return Result::createError($request, 403, 'Error while renaming file')->createResponse();
+            }
+        }
+
+        $media = $this->app->getMediaFromUri($newPathname);
+
+        $Package = new File($this->app, $media, $collection, $originalName);
 
         if ($request->get('status')) {
             $Package->addAttribute(new Status($this->app, $request->get('status')));
@@ -960,6 +1042,11 @@ class V1Controller extends Controller
         $nosubdef = $request->get('nosubdefs') === '' || \p4field::isyes($request->get('nosubdefs'));
         $this->getBorderManager()->process($session, $Package, $callback, $behavior, $nosubdef);
 
+        // remove $newPathname on temporary directory
+        if ($newPathname !== $uploadedFilename) {
+            @rename($newPathname, $uploadedFilename);
+        }
+
         $ret = ['entity' => null];
 
         if ($output instanceof \record_adapter) {
@@ -1000,7 +1087,15 @@ class V1Controller extends Controller
             return $this->getBadRequestAction($request, 'Missing name parameter');
         }
 
-        $media = $this->app->getMediaFromUri($file->getPathname());
+        // Add file extension
+        $uploadedFilename = $file->getRealPath();
+
+        $renamedFilename = $file->getRealPath() . '.' . pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+
+        $this->getFilesystem()->rename($uploadedFilename, $renamedFilename);
+
+        $media = $this->app->getMediaFromUri($renamedFilename);
+
         $record = $this->findDataboxById($request->get('databox_id'))->get_record($request->get('record_id'));
         $base_id = $record->getBaseId();
         $collection = \collection::getByBaseId($this->app, $base_id);
@@ -1011,12 +1106,21 @@ class V1Controller extends Controller
         }
         $adapt = ($request->get('adapt')===null || !(\p4field::isno($request->get('adapt'))));
         $ret['adapt'] = $adapt;
-        $this->getSubdefSubstituer()->substitute($record, $request->get('name'), $media, $adapt);
+        if($request->get('name') == 'document') {
+            $this->getSubdefSubstituer()->substituteDocument($record, $media);
+        } else {
+            $this->getSubdefSubstituer()->substituteSubdef($record, $request->get('name'), $media, $adapt);
+        }
         foreach ($record->get_embedable_medias() as $name => $media) {
             if ($name == $request->get('name') &&
                 null !== ($subdef = $this->listEmbeddableMedia($request, $record, $media))) {
                 $ret[] = $subdef;
             }
+        }
+
+        // remove $newPathname on temporary directory
+        if ($renamedFilename !== $uploadedFilename) {
+            @rename($renamedFilename, $uploadedFilename);
         }
 
         return Result::create($request, $ret)->createResponse();
@@ -1495,21 +1599,21 @@ class V1Controller extends Controller
         $options->setFirstResult((int)($request->get('offset_start') ?: 0));
         $options->setMaxResults((int)$request->get('per_page') ?: 10);
 
-        $this->getSearchEngine()->resetCache();
+        $searchEngine = $this->getSearchEngine();
 
-        $search_result = $this->getSearchEngine()->query((string)$request->get('query'), $options);
+        $search_result = $searchEngine->query((string)$request->get('query'), $options);
 
-        $this->getUserManipulator()->logQuery($this->getAuthenticatedUser(), $search_result->getUserQuery());
+        $this->getUserManipulator()->logQuery($this->getAuthenticatedUser(), $search_result->getQueryText());
 
         // log array of collectionIds (from $options) for each databox
         $collectionsReferencesByDatabox = $options->getCollectionsReferencesByDatabox();
         foreach ($collectionsReferencesByDatabox as $sbid => $references) {
             $databox = $this->findDataboxById($sbid);
-            $collectionsIds = array_map(function(CollectionReference $ref){return $ref->getCollectionId();}, $references);
-            $this->getSearchEngineLogger()->log($databox, $search_result->getUserQuery(), $search_result->getTotal(), $collectionsIds);
+            $collectionsIds = array_map(function (CollectionReference $ref) {
+                return $ref->getCollectionId();
+            }, $references);
+            $this->getSearchEngineLogger()->log($databox, $search_result->getQueryText(), $search_result->getTotal(), $collectionsIds);
         }
-
-        $this->getSearchEngine()->clearCache();
 
         return $search_result;
     }
@@ -1922,7 +2026,7 @@ class V1Controller extends Controller
                 return $this->getBadRequestAction($request);
             }
 
-            $datas = substr($datas, 0, ($n)) . $value . substr($datas, ($n + 2));
+            $datas = substr($datas, 0, ($n)) . $value . substr($datas, ($n + 1));
         }
 
         $record->setStatus(strrev($datas));
@@ -1989,7 +2093,7 @@ class V1Controller extends Controller
 
         try {
             $collection = \collection::getByBaseId($this->app, $request->get('base_id'));
-            $record->move_to_collection($collection, $this->getApplicationBox());
+            $record->move_to_collection($collection);
 
             return Result::create($request, ["record" => $this->listRecord($request, $record)])->createResponse();
         } catch (\Exception $e) {
@@ -2526,8 +2630,18 @@ class V1Controller extends Controller
         foreach ($recordsData as $data) {
             $records[] = $this->addOrDelStoryRecord($story, $data, $action);
             if($action === 'ADD' && !$cover_set && isset($data->{'use_as_cover'}) && $data->{'use_as_cover'} === true) {
+                $coverSource = [];
+
+                if (isset($data->{'thumbnail_cover_source'})) {
+                    $coverSource['thumbnail_cover_source'] = $data->{'thumbnail_cover_source'};
+                }
+
+                if (isset($data->{'preview_cover_source'})) {
+                    $coverSource['preview_cover_source'] = $data->{'preview_cover_source'};
+                }
+
                 // because we can try many records as cover source, we let it fail
-                $cover_set = ($this->setStoryCover($story, $data->{'record_id'}, true) !== false);
+                $cover_set = ($this->setStoryCover($story, $data->{'record_id'}, true, $coverSource) !== false);
             }
         }
 
@@ -2581,14 +2695,26 @@ class V1Controller extends Controller
 
         $story = new \record_adapter($this->app, $databox_id, $story_id);
 
+        $coverSource = [];
+
+        if (isset($data->{'thumbnail_cover_source'})) {
+            $coverSource['thumbnail_cover_source'] = $data->{'thumbnail_cover_source'};
+        }
+
+        if (isset($data->{'preview_cover_source'})) {
+            $coverSource['preview_cover_source'] = $data->{'preview_cover_source'};
+        }
+
         // we do NOT let "setStoryCover()" fail : pass false as last arg
-        $record_key = $this->setStoryCover($story, $data->{'record_id'}, false);
+        $record_key = $this->setStoryCover($story, $data->{'record_id'}, false, $coverSource);
 
         return Result::create($request, array($record_key))->createResponse();
     }
 
-    protected function setStoryCover(\record_adapter $story, $record_id, $can_fail=false)
+    protected function setStoryCover(\record_adapter $story, $record_id, $can_fail=false, $coverSource = [])
     {
+        $coverSource = array_merge(['thumbnail_cover_source' => 'thumbnail', 'preview_cover_source' => 'preview'], $coverSource);
+
         try {
             $record = new \record_adapter($this->app, $story->getDataboxId(), $record_id);
         } catch (\Exception_Record_AdapterNotFound $e) {
@@ -2600,20 +2726,24 @@ class V1Controller extends Controller
             $this->app->abort(404, sprintf('Record identified by databox_id %s and record_id %s is not in the story', $story->getDataboxId(), $record_id));
         }
 
-        if ($record->getType() !== 'image' && $record->getType() !== 'video') {
-            // this can fail so we can loop on many records during story creation...
-            if($can_fail) {
-                return false;
-            }
-            $this->app->abort(403, sprintf('Record identified by databox_id %s and record_id %s is not an image nor a video', $story->getDataboxId(), $record_id));
-        }
+        // taking account all record type as a cover
+//        if ($record->getType() !== 'image' && $record->getType() !== 'video') {
+//            // this can fail so we can loop on many records during story creation...
+//            if($can_fail) {
+//                return false;
+//            }
+//            $this->app->abort(403, sprintf('Record identified by databox_id %s and record_id %s is not an image nor a video', $story->getDataboxId(), $record_id));
+//        }
 
         foreach ($record->get_subdefs() as $name => $value) {
-            if (!in_array($name, array('thumbnail', 'preview'))) {
+            if (!($key = array_search($name, $coverSource))) {
                 continue;
             }
+
+            $name = ($key == 'thumbnail_cover_source') ? 'thumbnail': 'preview';
+
             $media = $this->app->getMediaFromUri($value->getRealPath());
-            $this->getSubdefSubstituer()->substitute($story, $name, $media);
+            $this->getSubdefSubstituer()->substituteSubdef($story, $name, $media);  // name = thumbnail | preview
             $this->getDataboxLogger($story->getDatabox())->log(
                 $story,
                 \Session_Logger::EVENT_SUBSTITUTE,
@@ -2642,6 +2772,205 @@ class V1Controller extends Controller
         }
 
         return Result::create($request, $ret)->createResponse();
+    }
+
+    /**
+     * Returns all documentary fields available for user
+     * @param Request $request
+     * @return Response
+     */
+    public function getCurrentUserStructureAction(Request $request)
+    {
+        $ret = [
+          "meta_fields" => $this->listUserAuthorizedMetadataFields($this->getAuthenticatedUser()),
+          "aggregable_fields" => $this->buildUserFieldList(ElasticsearchOptions::getAggregableTechnicalFields(), ['choices']),
+          "technical_fields" => $this->buildUserFieldList(media_subdef::getTechnicalFieldsList()),
+        ];
+
+        return Result::create($request, $ret)->createResponse();
+    }
+
+    /**
+     * Returns all sub-definitions available for the user
+     * @param Request $request
+     * @return Response
+     */
+    public function getCurrentUserSubdefsAction(Request $request)
+    {
+        $ret = [
+          "subdefs" => $this->listUserAuthorizedSubdefs($this->getAuthenticatedUser()),
+        ];
+
+        return Result::create($request, $ret)->createResponse();
+    }
+
+    /**
+     * Returns all collections available for the user
+     * @param Request $request
+     * @return Response
+     */
+    public function getCurrentUserCollectionsAction(Request $request)
+    {
+        $ret = [
+            "collections" => $this->listUserAuthorizedCollections($this->getAuthenticatedUser()),
+        ];
+        return Result::create($request, $ret)->createResponse();
+    }
+
+    /**
+     * Returns list of Metadata Fields from the databoxes on which the user has rights
+     * @param User $user
+     * @return array
+     */
+    private function listUserAuthorizedMetadataFields(User $user)
+    {
+        $acl = $this->getAclForUser($user);
+        $ret = [];
+
+        foreach ($acl->get_granted_sbas() as $databox) {
+            $databoxId = $databox->get_sbas_id();
+            foreach ($databox->get_meta_structure() as $databox_field) {
+                $data = [
+                  'name'             => $databox_field->get_name(),
+                  'id'               => $databox_field->get_id(),
+                  'databox_id'       => $databoxId,
+                  'multivalue'       => $databox_field->is_multi(),
+                  'indexable'        => $databox_field->is_indexable(),
+                  'readonly'         => $databox_field->is_readonly(),
+                  'business'         => $databox_field->isBusiness(),
+                  'source'           => $databox_field->get_tag()->getTagname(),
+                  'labels'           => [
+                    'fr' => $databox_field->get_label('fr'),
+                    'en' => $databox_field->get_label('en'),
+                    'de' => $databox_field->get_label('de'),
+                    'nl' => $databox_field->get_label('nl'),
+                  ],
+                ];
+                $ret[] = $data;
+            }
+
+            if ($acl->can_see_business_fields($databox) === false) {
+                $ret = array_values($this->removeBusinessFields($ret));
+            }
+        }
+
+        return $ret;
+    }
+
+    /**
+     * Build the aggregable/technical fields array
+     * @param array $fields
+     * @param array $excludes
+     * @return array
+     */
+    private function buildUserFieldList(array $fields, array $excludes = [])
+    {
+        $ret = [];
+
+        foreach ($fields as $key => $field) {
+            $data['name'] = $key;
+
+            foreach ($field as $k => $i) {
+                if (in_array($k, $excludes)) {
+                    continue;
+                }
+
+                $data[$k] = $i;
+            }
+
+            $ret[] = $data;
+        }
+
+        return $ret;
+    }
+
+    /**
+     * Returns list of sub-definitions from the databoxes on which the user has rights
+     * @param User $user
+     * @return array
+     */
+    private function listUserAuthorizedSubdefs(User $user)
+    {
+        $acl = $this->getAclForUser($user);
+        $ret = [];
+
+        foreach ($acl->get_granted_sbas() as $databox) {
+            $databoxId = $databox->get_sbas_id();
+            $subdefs = $databox->get_subdef_structure();
+            foreach ($subdefs as $subGroup) {
+                foreach ($subGroup->getIterator() as $sub) {
+                    $opt = [];
+                    $data = [
+                      'name'             => $sub->get_name(),
+                      'databox_id'       => $databoxId,
+                      'class'            => $sub->get_class(),
+                      'preset'           => $sub->get_preset(),
+                      'downloadable'     => $sub->isDownloadable(),
+                      'devices'          => $sub->getDevices(),
+                      'labels'           => [
+                        'fr' => $sub->get_label('fr'),
+                        'en' => $sub->get_label('en'),
+                        'de' => $sub->get_label('de'),
+                        'nl' => $sub->get_label('nl'),
+                      ],
+                    ];
+                    $options = $sub->getOptions();
+                    foreach ($options as $option) {
+                        $opt[$option->getName()] = $option->getValue();
+                    }
+                    $data['options'] = $opt;
+                    $ret[$subGroup->getName()][$sub->get_name()] = $data;
+                }
+            }
+        }
+
+        return $ret;
+    }
+
+    /**
+     * Returns list of collection from the databoxes on which the user has rights
+     * @param User $user
+     * @return array
+     */
+    private function listUserAuthorizedCollections(User $user)
+    {
+        $acl = $this->getAclForUser($user);
+        $rights = $acl->get_bas_rights();
+        $bases = $acl->get_granted_base();
+
+        $grants = [];
+
+        $statusMapper = new RestrictedStatusExtractor($acl, $this->getApplicationBox());
+
+        foreach ($bases as $base) {
+            $baseGrants = [];
+
+            foreach ($rights as $right) {
+                if (!$acl->has_right_on_base($base->get_base_id(), $right)) {
+                    continue;
+                }
+
+                $baseGrants[] = $right;
+            }
+
+            $grants[] = [
+                'databox_id'    => $base->get_sbas_id(),
+                'base_id'       => $base->get_base_id(),
+                'collection_id' => $base->get_coll_id(),
+                'name'          => $base->get_name(),
+                'logo'          => $base->get_binary_minilogos() ? base64_encode($base->get_binary_minilogos()) : '',
+                'labels'        => [
+                    'fr' => $base->get_label('fr'),
+                    'en' => $base->get_label('en'),
+                    'de' => $base->get_label('de'),
+                    'nl' => $base->get_label('nl'),
+                ],
+                'rights'        => $baseGrants,
+                'statuses'      => $statusMapper->getRestrictedStatuses($base->get_base_id())
+            ];
+        }
+
+        return $grants;
     }
 
     public function deleteCurrentUserAction(Request $request)
@@ -3092,5 +3421,17 @@ class V1Controller extends Controller
 
             $recordView->setCaption($captionView);
         }
+    }
+
+    /**
+     * Remove business metadata fields
+     * @param array $fields
+     * @return array
+     */
+    private function removeBusinessFields(array $fields)
+    {
+        return array_filter($fields, function ($field) {
+            return $field['business'] !== true;
+        });
     }
 }
