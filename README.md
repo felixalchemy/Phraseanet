@@ -18,9 +18,15 @@ The most complete Open Source Digital Asset Management solution on the market.
 
 ## Installation
 
- - [Classic mode (dedicated for linux/MacOs beginner users)](./doc/installDemo.md)
+ - Beginner users
+    - [Linux (Ubuntu/Debian)](./doc/installLinux.md)
+    - [Linux (other distribution)](./doc/installLinux.md)
+    - [MacOs](./doc/installDemo.md)
+    - [Windows](./doc/installDemo.md)
+    
+ - Power users   
  
- - [Developpement mode (and/or power users)](./doc/installDev.md)
+ - [Developpement mode](./doc/installDev.md)
 
 ## Advanced usage
 
