@@ -26,7 +26,7 @@ esac
 done
 
 display_title "Git installation check"
-GIT_VERSION=`giat --version 2>/dev/null`
+GIT_VERSION=`git --version 2>/dev/null`
 if [[ -z $GIT_VERSION ]]; then
     echo "Git not detected.";
     if [[ -z $NO_PROMPT ]]; then
