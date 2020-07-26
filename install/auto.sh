@@ -11,12 +11,31 @@ display_title ()
   echo "└─${v// /─}─┘"
 }
 
+# get parameters
+for i in "$@"
+do
+case $i in
+    -nc|--no-confirm)
+    NO_PROMPT=true
+    shift # past argument=value
+    ;;
+    *)
+          # unknown option
+    ;;
+esac
+done
+
 display_title "Git installation check"
-GIT_VERSION=`git --version 2>/dev/null`
+GIT_VERSION=`giat --version 2>/dev/null`
 if [[ -z $GIT_VERSION ]]; then
     echo "Git not detected.";
-    read -p "Install Git ? (y/n) " -n 1 -r
-    echo    # (optional) move to a new line
+    if [[ -z $NO_PROMPT ]]; then
+      read -p "Install Git ? (y/n) " -n 1 -r
+      echo
+    else
+      REPLY=y
+    fi
+
     if [[ $REPLY =~ ^[Yy]$ ]]
     then
         echo "Install Git (root rights require)..."
@@ -36,4 +55,4 @@ cd Phraseanet
 
 bash install/installPhraseanet.sh
 
-# wget -qO - https://raw.githubusercontent.com/felixalchemy/Phraseanet/master/install/auto.sh | bash
+# wget -qO - https://raw.githubusercontent.com/felixalchemy/Phraseanet/master/install/auto.sh -nc | bash

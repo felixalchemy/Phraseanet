@@ -11,8 +11,14 @@ DOCKER_VERSION=`docker -v 2>/dev/null`
 DOCKER_SEMVER=`echo $DOCKER_VERSION | egrep -o '[0-9]+\.[0-9]+\.[0-9]'`
 if [[ -z $DOCKER_SEMVER ]]; then
     echo "Docker not detected.";
-    read -p "Install Docker ? (y/n) " -n 1 -r
-    echo    # (optional) move to a new line
+
+    if [[ -z $NO_PROMPT ]]; then
+      read -p "Install Docker ? (y/n) " -n 1 -r
+      echo
+    else
+      REPLY=y
+    fi
+
     if [[ $REPLY =~ ^[Yy]$ ]]
     then
         echo "Install Docker (root rights require)..."
@@ -41,8 +47,14 @@ DOCKER_COMPOSE_VERSION=`docker-compose -v 2>/dev/null`
 DOCKER_COMPOSE_SEMVER=`echo $DOCKER_COMPOSE_VERSION | egrep -o '[0-9]+\.[0-9]+\.[0-9]'`
 if [[ -z $DOCKER_COMPOSE_SEMVER ]]; then
     echo "Docker-compose not detected.";
-    read -p "Install Docker-compose v"$DOCKER_COMPOSE_SEMVER_REQUIRED"? (y/n) " -n 1 -r
-    echo    # (optional) move to a new line
+
+    if [[ -z $NO_PROMPT ]]; then
+      read -p "Install Docker-compose v"$DOCKER_COMPOSE_SEMVER_REQUIRED"? (y/n) " -n 1 -r
+      echo
+    else
+      REPLY=y
+    fi
+
     if [[ $REPLY =~ ^[Yy]$ ]]
     then
         echo "Install docker-compose (root rights require)..."
