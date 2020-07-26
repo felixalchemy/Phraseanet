@@ -17,6 +17,8 @@ if [[ -z $DOCKER_SEMVER ]]; then
     then
         echo "Install Docker (root rights require)..."
         wget -qO- https://get.docker.com/ | sh
+        sudo usermod -aG docker "$USER"
+        #newgrp docker
     else
         echo "exit."
         exit 0
@@ -44,7 +46,7 @@ if [[ -z $DOCKER_COMPOSE_SEMVER ]]; then
     if [[ $REPLY =~ ^[Yy]$ ]]
     then
         echo "Install docker-compose (root rights require)..."
-        sudo sh -c "curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_SEMVER}/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose"
+        sudo sh -c "curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_SEMVER_REQUIRED}/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose"
         sudo chmod +x /usr/local/bin/docker-compose
     else
         echo "exit."

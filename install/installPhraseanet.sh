@@ -20,3 +20,5 @@ if [[ -n $PHRASEANET_APP_PORT ]]; then
   echo -e "\nPhraseanet is running on \e[38;5;198mhttp://localhost:"$PHRASEANET_APP_PORT"\e[0m\n"
 fi
 
+
+
