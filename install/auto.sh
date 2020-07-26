@@ -39,7 +39,7 @@ if [[ -z $GIT_VERSION ]]; then
     if [[ $REPLY =~ ^[Yy]$ ]]
     then
         echo "Install Git (root rights require)..."
-        sudo sudo apt-get -y install git
+        sudo sudo apt-get -y --force-yes install git
     else
         echo "exit."
         exit 0
