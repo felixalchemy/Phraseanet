@@ -39,7 +39,7 @@ if [[ -z $GIT_VERSION ]]; then
     if [[ $REPLY =~ ^[Yy]$ ]]
     then
         echo "Install Git (root rights require)..."
-        sudo sudo apt-get install git
+        sudo sudo apt-get -y install git
     else
         echo "exit."
         exit 0
@@ -56,3 +56,4 @@ cd Phraseanet
 bash install/installPhraseanet.sh
 
 # wget -qO - https://raw.githubusercontent.com/felixalchemy/Phraseanet/master/install/auto.sh -nc | bash
+# wget -q https://raw.githubusercontent.com/felixalchemy/Phraseanet/master/install/auto.sh && bash auto.sh -nc
