@@ -12,16 +12,24 @@ display_title ()
 }
 
 display_title "Git installation check"
-git --version 2>&1 >/dev/null
-GIT_IS_AVAILABLE=$?
-# ...
-if [ $GIT_IS_AVAILABLE -eq 0 ];
-then
-  echo "Install git (root rights require)..."
-  sudo sudo apt-get install git
+GIT_VERSION=`git --version 2>/dev/null`
+if [[ -z $GIT_VERSION ]]; then
+    echo "Git not detected.";
+    read -p "Install Git ? (y/n) " -n 1 -r
+    echo    # (optional) move to a new line
+    if [[ $REPLY =~ ^[Yy]$ ]]
+    then
+        echo "Install Git (root rights require)..."
+        sudo sudo apt-get install git
+    else
+        echo "exit."
+        exit 0
+    fi
 else
   echo "Git installation ok."
 fi
+
+exit 0
 
 display_title "Clone repository"
 git clone https://github.com/felixalchemy/Phraseanet.git
@@ -29,3 +37,5 @@ git clone https://github.com/felixalchemy/Phraseanet.git
 cd Phraseanet
 
 bash install/installPhraseanet.sh
+
+# wget -O - https://raw.githubusercontent.com/felixalchemy/Phraseanet/master/install/auto.sh | bash
