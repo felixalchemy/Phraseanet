@@ -69,6 +69,24 @@ uninstall_docker ()
 
 }
 
+uninstall_phraseanet_sources ()
+{
+  FULL_SCRIPT_PATH=$PWD/$BASH_SOURCE
+  FULL_SCRIPT_DIRECTORY=${FULL_SCRIPT_PATH%/*}
+  cd $FULL_SCRIPT_DIRECTORY
+  cd ..
+  cd ..
+  ##
+  # Exit if "Phraseanet" directory not exit
+  #
+  if [[ ! -d "Phraseanet" ]]; then
+    echo "Can't locate Phraseanet root in \"$PWD\". Exit..."
+    exit 0
+  else
+    rm -rf ./Phraseanet
+  fi
+}
+
 read -p "Uninstall Phraseanet app ? (y/n) " -n 1 -r
 echo    # (optional) move to a new line
 if [[ $REPLY =~ ^[Yy]$ ]]
@@ -103,21 +121,9 @@ read -p "Uninstall Phraseanet sources ? (y/n) " -n 1 -r
 echo    # (optional) move to a new line
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-  FULL_SCRIPT_PATH=$PWD/$BASH_SOURCE
-  FULL_SCRIPT_DIRECTORY=${FULL_SCRIPT_PATH%/*}
-  cd $FULL_SCRIPT_DIRECTORY
-  cd ..
-  cd ..
-  ##
-  # Exit if "Phraseanet" directory not exit
-  #
-  if [[ ! -d "Phraseanet" ]]; then
-    echo "Can't locate Phraseanet root in \"$PWD\". Exit..."
-    exit 0
-  else
-    rm -rf ./Phraseanet
-  fi
+  uninstall_phraseanet_sources
 else
     echo "exit."
     exit 0
 fi
+}
