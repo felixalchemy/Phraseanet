@@ -126,4 +126,3 @@ else
     echo "exit."
     exit 0
 fi
-}
