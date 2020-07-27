@@ -23,8 +23,17 @@ if [[ -z $DOCKER_SEMVER ]]; then
     then
         echo "Install Docker (root rights require)..."
         wget -qO- https://get.docker.com/ | sh
+
+        DOCKER_VERSION=`docker -v 2>/dev/null`
+        DOCKER_SEMVER=`echo $DOCKER_VERSION | egrep -o '[0-9]+\.[0-9]+\.[0-9]'`
+        if [[ -z $DOCKER_SEMVER ]]; then
+          echo "Docker installation failed, please install manually.";
+          exit 0
+        fi
+echo "usermod..."
         sudo usermod -aG docker "$USER"
-        #newgrp docker
+echo "newgrp..."
+#        newgrp docker
     else
         echo "exit."
         exit 0
@@ -40,7 +49,7 @@ else
     echo "Docker version OK"
   fi
 fi
-
+echo "docker-compose..."
 # docker-compose version check
 display_title "Docker-compose installation check"
 DOCKER_COMPOSE_VERSION=`docker-compose -v 2>/dev/null`
