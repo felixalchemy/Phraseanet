@@ -11,6 +11,8 @@ display_title ()
   echo "└─${v// /─}─┘"
 }
 
+rm $PWD/$BASH_SOURCE
+
 # get parameters
 for i in "$@"
 do
