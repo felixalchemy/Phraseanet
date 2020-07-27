@@ -22,8 +22,9 @@ if [[ -z $DOCKER_SEMVER ]]; then
     if [[ $REPLY =~ ^[Yy]$ ]]
     then
         echo "Install Docker (root rights require)..."
+        sudo move /etc/apt/sources.list /etc/apt/sources.list.bak
         wget -qO- https://get.docker.com/ | sh
-
+        sudo move /etc/apt/sources.list.bak /etc/apt/sources.list
         DOCKER_VERSION=`docker -v 2>/dev/null`
         DOCKER_SEMVER=`echo $DOCKER_VERSION | egrep -o '[0-9]+\.[0-9]+\.[0-9]'`
         if [[ -z $DOCKER_SEMVER ]]; then
@@ -33,7 +34,7 @@ if [[ -z $DOCKER_SEMVER ]]; then
 echo "usermod..."
         sudo usermod -aG docker "$USER"
 echo "newgrp..."
-#        newgrp docker
+        newgrp docker
     else
         echo "exit."
         exit 0
