@@ -25,9 +25,8 @@ bash Phraseanet/install/stop.sh
 ```bash
 bash Phraseanet/install/uninstall.sh
 ```
-> Uninstall 
->  - Phraseanet app
->  - Docker
->  - Docker-compose
->  - Git
->  - Phraseanet sources
+This process interactively offers to uninstall one or more of the following items :
+ - Phraseanet app
+ - Docker and Docker-compose
+ - Git
+ - Phraseanet sources
