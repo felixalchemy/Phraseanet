@@ -1,12 +1,14 @@
 #!/bin/bash
 
-source install/install_fn.sh
+ABSOLUTE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-source install/install_vmValues.sh
+source $ABSOLUTE_DIR/install_fn.sh
 
-source install/installDocker.sh
+source $ABSOLUTE_DIR/install_vmValues.sh
 
-source install/start.sh
+source $ABSOLUTE_DIR/installDocker.sh
+
+source $ABSOLUTE_DIR/start.sh
 
 
 

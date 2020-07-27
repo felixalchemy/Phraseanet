@@ -1,5 +1,7 @@
 #!/bin/bash
-source install/install_fn.sh
+
+ABSOLUTE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source ABSOLUTE_DIR/install_fn.sh
 
 display_title "Stop Phraseanet app"
 sg docker "docker-compose stop"

@@ -19,10 +19,10 @@ The most complete Open Source Digital Asset Management solution on the market.
 ## Installation
 
  - Beginner users
-    - [Linux (Ubuntu/Debian)](./doc/installLinux.md)
+    - [Linux (Ubuntu / Debian)](./doc/installDebian.md)
     - [Linux (other distribution)](./doc/installLinux.md)
-    - [MacOs](./doc/installDemo.md)
-    - [Windows](./doc/installDemo.md)
+    - [MacOs](./doc/installMacOs.md)
+    - [Windows](./doc/installWindows.md)
     
  - Power users   
  

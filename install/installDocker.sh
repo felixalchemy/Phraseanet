@@ -3,7 +3,8 @@
 DOCKER_SEMVER_REQUIRED="18.01"
 DOCKER_COMPOSE_SEMVER_REQUIRED="1.25.4"
 
-source install/install_fn.sh
+ABSOLUTE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $ABSOLUTE_DIR/install_fn.sh
 
 # docker version check
 display_title "Docker installation check"

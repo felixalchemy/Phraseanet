@@ -1,4 +1,4 @@
-# Phraseanet installation on Linux Debian/Ubuntu
+# Phraseanet installation on Linux
 
 ## Prerequisites
 To install Phraseanet, you must first install software below :
