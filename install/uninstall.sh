@@ -80,10 +80,10 @@ uninstall_phraseanet_sources ()
   # Exit if "Phraseanet" directory not exit
   #
   if [[ ! -d "Phraseanet" ]]; then
-    echo "Can't locate Phraseanet root in \"$PWD\". Exit..."
+    echo "Can't locate Phraseanet directory in \"$PWD\". Exit..."
     exit 0
   else
-    rm -rf ./Phraseanet
+    sudo rm -rf ./Phraseanet
   fi
 }
 
