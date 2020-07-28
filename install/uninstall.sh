@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 uninstall_package ()
 {
   dpkg -s $1 &> /dev/null
@@ -86,6 +87,9 @@ uninstall_phraseanet_sources ()
     sudo rm -rf ./Phraseanet
   fi
 }
+
+ABSOLUTE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $ABSOLUTE_DIR/install_fn.sh
 
 read -p "Uninstall Phraseanet app ? (y/n) " -n 1 -r
 echo    # (optional) move to a new line

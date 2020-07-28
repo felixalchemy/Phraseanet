@@ -1,9 +1,13 @@
 #!/bin/bash
 
 ABSOLUTE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source ABSOLUTE_DIR/install_fn.sh
+source $ABSOLUTE_DIR/install_fn.sh
 
 display_title "Start Phraseanet app"
+
+cd $ABSOLUTE_DIR
+cd ..
+
 # getting PHRASEANET_APP_PORT from .env
 if [ -f .env ]; then
   OVERRIDE_ENV=`echo $(cat .env | grep -v '#' | tr '\n' ' ')`
