@@ -18,6 +18,9 @@ if [[ "$VM_MAX_MAP_COUNT" != "262144" ]]; then
           # sudo sysctl -w vm.max_map_count=262144
           echo "macOS"
   fi
+else
+  echo "vm.max_map_count = "$VM_MAX_MAP_COUNT
+  echo "vm.max_map_count value OK."
 fi
 
 VM_MAX_MAP_COUNT=`sysctl --values --ignore vm.max_map_count`
@@ -25,7 +28,4 @@ if [[ "$VM_MAX_MAP_COUNT" != "262144" ]]; then
 
   echo "Can't set vm.max_map_count value to "$VM_MAX_MAP_COUNT". Please set it manually"
   exit 0
-else
-  echo "vm.max_map_count =cd  "$VM_MAX_MAP_COUNT
-  echo "vm.max_map_count value OK."
 fi
