@@ -121,5 +121,3 @@ else
     echo "Docker-compose version OK"
   fi
 fi
-
-}
