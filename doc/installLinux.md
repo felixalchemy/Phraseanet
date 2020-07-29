@@ -21,14 +21,24 @@ Into Phraseanet directory, edit `.env` file and modify following lines :
 ### Install (and run) Phraseanet
 From Phraseanet directory, type in a terminal
 ```bash
-bash install start.sh
+bash Phraseanet/install/install.sh
 ```
 Note that :
 > - The application run when the installation is complete, open a navigator on http://localhost:8082, that'all !
-
+  
 ### Start/Stop application
-  - Start : `bash start.sh`
-  - Stop : `bash stop.sh`
+  - Start : `bash Phraseanet/install/start.sh`
+  - Stop : `bash Phraseanet/install/stop.sh`
+
+### Uninstall
+```bash
+bash Phraseanet/install/uninstall.sh
+```
+This process interactively offers to uninstall one or more of the following items :
+ - Phraseanet app
+ - Docker and Docker-compose
+ - Git
+ - Phraseanet sources  
 
 
 
