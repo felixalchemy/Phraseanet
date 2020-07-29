@@ -44,6 +44,7 @@ change_source_list()
 
 docker_install_alternative()
 {
+  change_source_list
   sudo apt-get -y --allow-downgrades --allow-remove-essential --allow-unauthenticated remove docker docker-engine docker.io containerd runc
   sudo apt-get update
   sudo apt-get -y --allow-downgrades --allow-remove-essential --allow-unauthenticated install \
