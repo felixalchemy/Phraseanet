@@ -19,7 +19,6 @@ Into Phraseanet directory, edit `.env` file and modify following lines :
   - `INSTALL_ACCOUNT_PASSWORD=$3cr3t!`
   
 ### Install (and run) Phraseanet
-From Phraseanet directory, type in a terminal
 ```bash
 bash Phraseanet/install/install.sh
 ```
