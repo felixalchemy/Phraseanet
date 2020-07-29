@@ -16,11 +16,11 @@ fi
 
 if [ -f env.local ]; then
   OVERRIDE_ENV=`echo $(cat env.local | grep -v '#' | tr '\n' ' ')`
-  sg docker "env $OVERRIDE_ENV docker-compose -f docker-compose.yml up -d"
+  sudo sg docker "env $OVERRIDE_ENV docker-compose -f docker-compose.yml up -d"
   # getting PHRASEANET_APP_PORT from env.local
   PHRASEANET_APP_PORT=`echo $OVERRIDE_ENV | grep -Eo 'PHRASEANET_APP_PORT=([0-9^w]*)' | cut -d'=' -f 2`
 else
-  sg docker "docker-compose -f docker-compose.yml up -d"
+  sudo sg docker "docker-compose -f docker-compose.yml up -d"
 fi
 
 if [[ -n $PHRASEANET_APP_PORT ]]; then
