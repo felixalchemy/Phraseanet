@@ -22,8 +22,7 @@ Into Phraseanet directory, edit `.env` file and modify following lines :
 ```bash
 bash Phraseanet/install/install.sh
 ```
-Note that :
-> - The application run when the installation is complete, open a navigator on http://localhost:8082, that'all !
+> The application run when the installation is complete, open a navigator on http://localhost:8082, that'all !
   
 ### Start/Stop application
   - Start : `bash Phraseanet/install/start.sh`
