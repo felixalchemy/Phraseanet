@@ -72,10 +72,6 @@ uninstall_docker ()
 
 uninstall_phraseanet_sources ()
 {
-  FULL_SCRIPT_PATH=$PWD/$BASH_SOURCE
-  FULL_SCRIPT_DIRECTORY=${FULL_SCRIPT_PATH%/*}
-  cd $FULL_SCRIPT_DIRECTORY
-  cd ..
   cd ..
   ##
   # Exit if "Phraseanet" directory not exit
@@ -90,6 +86,9 @@ uninstall_phraseanet_sources ()
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPT_DIR/installFunctions.sh
+
+cd $SCRIPT_DIR
+cd ..
 
 display_title "Uninstall"
 
