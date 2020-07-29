@@ -42,6 +42,22 @@ change_source_list()
   sudo mv $TMP_REPO_FILENAME $REPO_FILEPATH
 }
 
+docker_install_alternative()
+{
+  sudo apt-get remove docker docker-engine docker.io containerd runc
+  sudo apt-get update
+  sudo apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg-agent \
+    software-properties-common
+  curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+  sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+  sudo apt-get update
+  sudo apt-get install docker-ce docker-ce-cli containerd.io
+}
+
 # docker version check
 display_title "Docker installation check"
 DOCKER_VERSION=`docker -v 2>/dev/null`
@@ -62,12 +78,21 @@ if [[ -z $DOCKER_SEMVER ]]; then
         change_source_list
         wget -qO- https://get.docker.com/ | sh
         recover_source_list
+
         DOCKER_VERSION=`docker -v 2>/dev/null`
         DOCKER_SEMVER=`echo $DOCKER_VERSION | egrep -o '[0-9]+\.[0-9]+\.[0-9]'`
         if [[ -z $DOCKER_SEMVER ]]; then
-          echo "Docker installation failed, please install manually.";
-          exit 0
+          echo "Docker installation alternative.";
+          docker_install_alternative
+
+          DOCKER_VERSION=`docker -v 2>/dev/null`
+          DOCKER_SEMVER=`echo $DOCKER_VERSION | egrep -o '[0-9]+\.[0-9]+\.[0-9]'`
+          if [[ -z $DOCKER_SEMVER ]]; then
+            echo "Docker installation failed, please install manually.";
+            exit 0
+          fi
         fi
+
         #sudo usermod -aG docker "$USER"
         sudo gpasswd -a "$USER" docker
     else
