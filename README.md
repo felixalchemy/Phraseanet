@@ -24,13 +24,9 @@ The most complete Open Source Digital Asset Management solution on the market.
     - [MacOs](./doc/installMacOs.md)
     - [Windows](./doc/installWindows.md)
     
- - Power users   
+ - [Power users](./doc/installPowerUsers.md) 
  
  - [Developpement mode](./doc/installDev.md)
-
-## Advanced usage
-
-Want to work 
 
 ## Documentation
 

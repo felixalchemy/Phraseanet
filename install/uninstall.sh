@@ -88,8 +88,8 @@ uninstall_phraseanet_sources ()
   fi
 }
 
-ABSOLUTE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source $ABSOLUTE_DIR/installFunctions.sh
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $SCRIPT_DIR/installFunctions.sh
 
 display_title "Uninstall"
 

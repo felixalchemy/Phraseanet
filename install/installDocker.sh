@@ -3,8 +3,8 @@
 DOCKER_SEMVER_REQUIRED="18.01"
 DOCKER_COMPOSE_SEMVER_REQUIRED="1.25.4"
 
-ABSOLUTE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source $ABSOLUTE_DIR/installFunctions.sh
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $SCRIPT_DIR/installFunctions.sh
 
 recover_source_list()
 {

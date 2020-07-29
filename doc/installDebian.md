@@ -1,27 +1,24 @@
-# Phraseanet installation on Linux Debian/Ubuntu
+# Phraseanet installation on Linux Debian / Ubuntu
 
-## Install
+### Install
 
 Open a terminal and type command below :
 ```bash
 wget -q https://raw.githubusercontent.com/felixalchemy/Phraseanet/master/install/auto.sh && bash auto.sh -nc
 ```
 > - The application run when the installation is complete.
-> - It can be run on a live distribution.
+> - It can be run from an usb key [live distribution](https://livecdlist.com/).
+
+Open a navigator on http://localhost:8082, that'all !
+
 
 [Vidéo de l'installation]
 
-## Start Phraseanet app
-```bash
-bash Phraseanet/install/start.sh
-```
+### Start/Stop application
+  - Start : `bash Phraseanet/install/start.sh`
+  - Stop : `bash Phraseanet/install/stop.sh`
 
-## Stop Phraseanet app
-```bash
-bash Phraseanet/install/stop.sh
-```
-
-## Uninstall
+### Uninstall
 ```bash
 bash Phraseanet/install/uninstall.sh
 ```
